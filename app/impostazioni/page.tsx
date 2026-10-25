@@ -1,5 +1,6 @@
 "use client";
 
+import AskButton from "@/components/AskButton";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 
@@ -49,7 +50,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="h1">Impostazioni</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h1 className="h1">Impostazioni</h1><AskButton q="Spiegami le impostazioni e dove trovo ogni chiave">✨ Aiuto</AskButton></div>
         <p className="muted mt-1">
           Le chiavi restano sul tuo computer (cartella <code>studio/data/settings.json</code>) e non vengono mai mostrate di
           nuovo.
@@ -61,7 +62,7 @@ export default function SettingsPage() {
         {KEYS.map(({ k, label, help }) => (
           <div key={k}>
             <label className="label">
-              {label} {s[`${k}Set`] ? <span className="text-green-700">· collegata ✓</span> : null}
+              {label} {s[`${k}Set`] ? <span className="text-accent">· collegata ✓</span> : null}
             </label>
             <input
               type="password"

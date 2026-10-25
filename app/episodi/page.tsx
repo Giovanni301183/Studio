@@ -1,5 +1,6 @@
 "use client";
 
+import AskButton from "@/components/AskButton";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -39,7 +40,7 @@ export default function EpisodesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="h1">Episodi</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2"><h1 className="h1">Episodi</h1><AskButton q="Creiamo insieme un nuovo episodio: fammi tu le domande">✨ Crealo con l&apos;assistente</AskButton></div>
 
       <form
         className="card grid gap-4 md:grid-cols-3"
@@ -100,13 +101,13 @@ export default function EpisodesPage() {
           <label className="label">Personaggi nella puntata</label>
           {chars.length === 0 ? (
             <p className="muted">
-              Nessun personaggio ancora. <Link href="/personaggi" className="text-orange-600 underline">Creane uno</Link>{" "}
+              Nessun personaggio ancora. <Link href="/personaggi" className="text-accent underline">Creane uno</Link>{" "}
               (puoi anche procedere solo con il narratore).
             </p>
           ) : (
             <div className="flex flex-wrap gap-3">
               {chars.map((c) => (
-                <label key={c.id} className="flex items-center gap-2 rounded-xl border border-stone-200 px-3 py-2 text-sm">
+                <label key={c.id} className="flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm">
                   <input type="checkbox" name="characterIds" value={c.id} defaultChecked />
                   {c.name}
                 </label>
@@ -125,19 +126,19 @@ export default function EpisodesPage() {
         </div>
       </form>
 
-      {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && <p className="msg-err">{error}</p>}
 
       <div className="grid gap-3">
         {eps.map((e) => (
-          <Link key={e.id} href={`/episodi/${e.id}`} className="card flex flex-wrap items-center justify-between gap-2 hover:border-orange-300">
+          <Link key={e.id} href={`/episodi/${e.id}`} className="card flex flex-wrap items-center justify-between gap-2 hover:border-accent/50">
             <div>
-              <div className="text-xs font-mono text-stone-500">{e.code}</div>
+              <div className="text-xs font-mono text-muted">{e.code}</div>
               <div className="font-semibold">{e.title ?? e.topic}</div>
               <div className="muted">
                 {e.grade} · {e.subject} · {e.durationMin} min · {e.aspect}
               </div>
             </div>
-            <span className="rounded-full bg-orange-50 px-3 py-1 text-xs text-orange-700">{STATUS[e.status]}</span>
+            <span className="rounded-full bg-accent/10 px-3 py-1 text-xs text-accent">{STATUS[e.status]}</span>
           </Link>
         ))}
       </div>

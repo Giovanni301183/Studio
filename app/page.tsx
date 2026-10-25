@@ -1,167 +1,137 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import AskButton from "@/components/AskButton";
 import { getSettings } from "@/lib/settings";
 import { listCharacters, listEpisodes } from "@/lib/storage";
 
-const STEPS = [
-  {
-    title: "1. Collega i servizi",
-    href: "/impostazioni",
-    cta: "Apri Impostazioni",
-    body: [
-      "Anthropic (Claude) scrive le sceneggiature: console.anthropic.com → API Keys.",
-      "fal.ai genera immagini e video con molti modelli (Nano Banana Pro, Kling…): fal.ai → Dashboard → Keys.",
-      "ElevenLabs crea le voci in italiano: elevenlabs.io → Profilo → API Keys. Nella Voice Library scegli una voce per il narratore e una per ogni personaggio.",
-    ],
-  },
-  {
-    title: "2. Crea i personaggi",
-    href: "/personaggi",
-    cta: "Vai ai Personaggi",
-    body: [
-      "Scrivi nome, ruolo e un aspetto molto preciso (colori, vestiti, proporzioni): è quello che rende i personaggi coerenti.",
-      "Carica i disegni dell'illustratore oppure premi \"Proposte\" per farne generare 4 dall'AI e promuovi la migliore a riferimento.",
-      "Genera la scheda di rotazione (fronte, lato, retro) e la scheda espressioni, poi aggiungile ai riferimenti. Più riferimenti buoni = immagini più coerenti.",
-      "Importante per i diritti: ritocca a mano (o fai ritoccare) i personaggi principali prima di usarli come marchio.",
-    ],
-  },
-  {
-    title: "3. Imposta lo stile",
-    href: "/impostazioni",
-    cta: "Stile visivo",
-    body: [
-      "Lo \"stile visivo\" viene aggiunto a ogni immagine: tienilo identico per tutto il canale.",
-      "Fai qualche prova, scegli la versione che ti piace e non cambiarla più (salvo nuove serie).",
-    ],
-  },
-  {
-    title: "4. Crea un episodio e la sceneggiatura",
-    href: "/episodi",
-    cta: "Nuovo episodio",
-    body: [
-      "Scegli classe, materia, argomento e personaggi. Puoi caricare materiale: PDF, foto della pagina del libro, appunti in .txt.",
-      "Premi \"Genera sceneggiatura\": Claude crea scene, battute, prompt per le immagini, quiz e testi per i social.",
-      "Correggi tutto quello che vuoi direttamente nell'editor. Poi la revisione didattica dell'insegnante è obbligatoria prima di andare avanti.",
-    ],
-  },
-  {
-    title: "5. Immagini, voci e scene animate",
-    body: [
-      "Per ogni scena: \"Genera immagini\" crea 2 varianti usando i riferimenti dei personaggi presenti. Scegli la migliore (bordo arancione).",
-      "Se un'immagine non va bene, modifica il prompt della scena e rigenera: costa pochi centesimi.",
-      "\"Genera tutte le voci\" crea un mp3 per ogni battuta con la voce del personaggio.",
-      "Solo per le scene segnate come VIDEO AI: \"Anima scena\" crea una clip di 5-10 secondi. Costa di più: usala per i momenti \"wow\".",
-      "Controlla sempre: mani, volti, dettagli storici e scientifici. L'AI sbaglia, e per i bambini non si può sbagliare.",
-    ],
-  },
-  {
-    title: "6. Esporta per il montaggio",
-    body: [
-      "\"Esporta pacchetto\" crea una cartella con immagini, video e audio numerati per scena, la sceneggiatura e i sottotitoli .srt.",
-      "Il montatore la apre in CapCut, DaVinci Resolve o Premiere, anima i personaggi (parallasse, labiale con Cartoon Animator/Character Animator) e riallinea i sottotitoli.",
-      "Il file episodio.json contiene tutti i testi social: è pensato per il flusso n8n di pubblicazione.",
-    ],
-  },
-  {
-    title: "7. Collega n8n",
-    href: "/impostazioni",
-    cta: "Webhook n8n",
-    body: [
-      "In n8n crea un workflow con un nodo Webhook (POST) e incolla il suo URL nelle Impostazioni.",
-      "\"Invia a n8n\" manda l'episodio con i testi per ogni piattaforma: da lì n8n chiede l'approvazione, programma e pubblica secondo la griglia dell'AGENDA_PRODUZIONE.md.",
-    ],
-  },
+const FLOW = [
+  { n: 1, icon: "◉", title: "Personaggi", text: "Aspetto preciso + 3 immagini di riferimento + voce", q: "Spiegami bene come preparare un personaggio" },
+  { n: 2, icon: "✍", title: "Sceneggiatura", text: "Claude scrive scene, battute, quiz e testi social", q: "Come funziona la sceneggiatura con Claude?" },
+  { n: 3, icon: "✓", title: "Revisione", text: "Un insegnante controlla i contenuti (obbligatorio)", q: "Perché la revisione didattica è obbligatoria e come la organizzo?" },
+  { n: 4, icon: "▣", title: "Immagini", text: "2 varianti per scena, scegli la migliore", q: "Come ottengo immagini belle e coerenti?" },
+  { n: 5, icon: "▶", title: "Clip AI", text: "Solo 1–2 scene \"wow\" per episodio", q: "Quando conviene usare il video AI?" },
+  { n: 6, icon: "♪", title: "Voci", text: "Narratore + una voce per personaggio", q: "Come scelgo e collego le voci?" },
+  { n: 7, icon: "⇩", title: "Export", text: "Pacchetto per il montatore + n8n", q: "Cosa c'è nel pacchetto export e cosa ci fa il montatore?" },
 ];
 
-// Legge i file locali a ogni richiesta, quindi non va pre-renderizzato
-async function SetupStatus() {
+async function Status() {
   await connection();
   const [s, chars, eps] = await Promise.all([getSettings(), listCharacters(), listEpisodes()]);
   const checks = [
-    { ok: Boolean(s.anthropicApiKey), label: "Claude collegato" },
-    { ok: Boolean(s.falKey), label: "fal.ai collegato" },
-    { ok: Boolean(s.elevenLabsApiKey), label: "ElevenLabs collegato" },
-    { ok: Boolean(s.narratorVoiceId), label: "Voce del narratore" },
-    { ok: chars.length > 0, label: `Personaggi (${chars.length})` },
-    { ok: chars.some((c) => c.references.length >= 3), label: "Almeno 1 personaggio con 3+ riferimenti" },
-    { ok: eps.length > 0, label: `Episodi (${eps.length})` },
+    { ok: !!s.anthropicApiKey, label: "Claude" },
+    { ok: !!s.falKey, label: "fal.ai" },
+    { ok: !!s.elevenLabsApiKey, label: "ElevenLabs" },
+    { ok: !!s.narratorVoiceId, label: "Voce narratore" },
+    { ok: chars.some((c) => c.references.length >= 3), label: "Personaggio pronto" },
   ];
   return (
-    <div className="mt-2 flex flex-wrap gap-2">
-      {checks.map((c) => (
-        <span
-          key={c.label}
-          className={`rounded-full px-3 py-1 text-sm ${c.ok ? "bg-green-100 text-green-800" : "bg-stone-100 text-stone-500"}`}
-        >
-          {c.ok ? "✓" : "○"} {c.label}
-        </span>
-      ))}
-    </div>
+    <>
+      <div className="flex flex-wrap gap-2">
+        {checks.map((c) => (
+          <span key={c.label} className={c.ok ? "chip-on" : "chip"}>
+            {c.ok ? "●" : "○"} {c.label}
+          </span>
+        ))}
+      </div>
+      {eps.length > 0 && (
+        <div className="mt-6">
+          <div className="label">Episodi recenti</div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {eps.slice(0, 6).map((e) => (
+              <Link key={e.id} href={`/episodi/${e.id}`} className="panel p-4 transition hover:border-accent/50">
+                <div className="font-mono text-[11px] text-muted">{e.code}</div>
+                <div className="mt-1 font-semibold">{e.title ?? e.topic}</div>
+                <div className="muted mt-1 text-xs">
+                  {e.grade} · {e.subject} · {e.scenes.length} scene
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
-export default function Guide() {
+export default function Home() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="h1">Guida al backstage</h1>
-        <p className="muted mt-1">
-          Dal materiale scolastico al pacchetto pronto per il montaggio: segui i passi in ordine la prima volta.
+    <div className="mx-auto max-w-6xl space-y-8">
+      <section className="relative overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-[#16181a] via-[#121215] to-[#0f1512] p-6 md:p-10">
+        <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
+        <div className="text-xs font-semibold tracking-widest text-accent uppercase">Studio · Storie di Scuola</div>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">Cosa creiamo oggi?</h1>
+        <p className="muted mt-2 max-w-xl">
+          Dal programma scolastico al video: personaggi, storie, immagini e voci in un unico posto. Se hai un dubbio, l&apos;assistente ti
+          accompagna in ogni passaggio.
         </p>
-      </div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <Link href="/episodi" className="panel group p-4 transition hover:border-accent/60">
+            <div className="text-2xl">🎬</div>
+            <div className="mt-2 font-semibold group-hover:text-accent">Nuovo episodio</div>
+            <div className="muted text-xs">Argomento → sceneggiatura → scene</div>
+          </Link>
+          <Link href="/personaggi" className="panel group p-4 transition hover:border-accent/60">
+            <div className="text-2xl">🦉</div>
+            <div className="mt-2 font-semibold group-hover:text-accent">Nuovo personaggio</div>
+            <div className="muted text-xs">Design, riferimenti e voce</div>
+          </Link>
+          <AskButton q="Da dove comincio? Guidami passo passo" className="panel group p-4 text-left transition hover:border-accent/60">
+            <div className="text-2xl">✨</div>
+            <div className="mt-2 font-semibold group-hover:text-accent">Guidami tu</div>
+            <div className="muted text-xs">L&apos;assistente controlla cosa manca</div>
+          </AskButton>
+        </div>
+      </section>
 
-      <div className="card">
-        <div className="label">Stato della configurazione</div>
-        <Suspense fallback={<p className="muted mt-2">Controllo…</p>}>
-          <SetupStatus />
+      <section>
+        <div className="label">Stato</div>
+        <Suspense fallback={<p className="muted">Controllo…</p>}>
+          <Status />
         </Suspense>
-      </div>
+      </section>
 
-      <div className="card overflow-x-auto">
-        <div className="label">Il flusso</div>
-        <pre className="mt-2 text-xs leading-relaxed text-stone-700">{`Materiale (PDF/foto/appunti) + Personaggi + Stile
-        │
-        ▼
- Claude ──► Sceneggiatura (scene, battute, prompt, quiz, testi social)
-        │        └─► ✅ revisione didattica (persona)
-        ▼
- fal.ai ──► Immagini di ogni scena (coerenti con i riferimenti)
-        │   └─► Kling: clip animate per le scene "wow"
-        ▼
- ElevenLabs ──► Voci (narratore + personaggi)
-        │
-        ▼
- Pacchetto export ──► Montaggio (persona) ──► n8n ──► YouTube · Facebook · Instagram · TikTok`}</pre>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {STEPS.map((step) => (
-          <div key={step.title} className="card">
-            <h2 className="font-semibold text-stone-900">{step.title}</h2>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-stone-700">
-              {step.body.map((b) => (
-                <li key={b}>{b}</li>
-              ))}
-            </ul>
-            {step.href && (
-              <Link href={step.href} className="btn-secondary mt-3">
-                {step.cta}
-              </Link>
-            )}
+      <section>
+        <div className="mb-3 flex items-end justify-between">
+          <div>
+            <div className="label">Il flusso di un episodio</div>
+            <p className="muted text-xs">Clicca un passaggio per fartelo spiegare dall&apos;assistente</p>
           </div>
-        ))}
-      </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
+          {FLOW.map((f) => (
+            <AskButton key={f.n} q={f.q} className="panel group relative p-4 text-left transition hover:border-accent/60">
+              <div className="flex items-center justify-between">
+                <span className="text-xl text-accent">{f.icon}</span>
+                <span className="font-mono text-[11px] text-muted">0{f.n}</span>
+              </div>
+              <div className="mt-3 text-sm font-semibold group-hover:text-accent">{f.title}</div>
+              <div className="muted mt-1 text-xs leading-snug">{f.text}</div>
+            </AskButton>
+          ))}
+        </div>
+      </section>
 
-      <div className="card">
-        <div className="label">Costi indicativi (da verificare sui listini)</div>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-stone-700">
-          <li>Sceneggiatura con Claude: pochi centesimi per episodio.</li>
-          <li>Immagini: qualche centesimo ciascuna; un episodio con 12 scene × 2 varianti ≈ 1–4 €.</li>
-          <li>Voci: dipende dal piano ElevenLabs (caratteri al mese); un episodio di 5 minuti ≈ 4–5.000 caratteri.</li>
-          <li>Video AI: è la voce più cara (circa 0,3–1 € a clip). Limitala a 1–2 scene per episodio.</li>
-        </ul>
-      </div>
+      <section className="grid gap-3 md:grid-cols-2">
+        <div className="card">
+          <div className="label">Regole d&apos;oro</div>
+          <ul className="space-y-2 text-sm text-zinc-300">
+            <li>• Niente testo dentro le immagini: titoli e numeri si aggiungono al montaggio.</li>
+            <li>• Controlla sempre mani, volti, dettagli storici e scientifici.</li>
+            <li>• Lo stile visivo resta identico per tutto il canale.</li>
+            <li>• Video AI solo per i momenti &quot;wow&quot;: è la voce più cara.</li>
+          </ul>
+        </div>
+        <div className="card">
+          <div className="label">Costi indicativi</div>
+          <ul className="space-y-2 text-sm text-zinc-300">
+            <li>• Sceneggiatura: ~0,15 $</li>
+            <li>• Immagine: ~0,15 $ (12 scene × 2 varianti ≈ 3–4 $)</li>
+            <li>• Clip video 5 s: ~0,40 $</li>
+            <li>• Voci di un episodio di 5 min: ~1 $ (dipende dal piano ElevenLabs)</li>
+          </ul>
+        </div>
+      </section>
     </div>
   );
 }

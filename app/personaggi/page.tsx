@@ -1,5 +1,6 @@
 "use client";
 
+import AskButton from "@/components/AskButton";
 import { useCallback, useEffect, useState } from "react";
 import { api, fileUrl } from "@/lib/client";
 import type { Character } from "@/lib/types";
@@ -33,7 +34,7 @@ export default function CharactersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="h1">Personaggi</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h1 className="h1">Personaggi</h1><AskButton q="Aiutami a creare un personaggio sempre uguale in tutte le scene">✨ Come si fa?</AskButton></div>
         <p className="muted mt-1">
           I riferimenti sono le immagini che l&apos;AI usa per disegnare sempre lo stesso personaggio. Ne servono almeno 3
           buoni: scheda di rotazione, espressioni, una posa intera.
@@ -79,7 +80,7 @@ export default function CharactersPage() {
         </div>
       </form>
 
-      {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && <p className="msg-err">{error}</p>}
 
       {chars.map((c) => (
         <CharacterCard key={c.id} c={c} onChange={reload} />
@@ -157,9 +158,9 @@ function CharacterCard({ c, onChange }: { c: Character; onChange: () => void }) 
           {c.references.map((r) => (
             <div key={r} className="group relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={fileUrl(r)} alt="" className="h-32 rounded-xl border border-stone-200 object-contain" />
+              <img src={fileUrl(r)} alt="" className="h-32 rounded-xl border border-line object-contain" />
               <button
-                className="absolute top-1 right-1 hidden rounded-full bg-white/90 px-2 text-xs text-red-600 group-hover:block"
+                className="absolute top-1 right-1 hidden rounded-full bg-black/80 px-2 text-xs text-danger group-hover:block"
                 onClick={() => act("removeRef", { ref: r })}
               >
                 ✕
@@ -201,7 +202,7 @@ function CharacterCard({ c, onChange }: { c: Character; onChange: () => void }) 
             {proposals.map((p) => (
               <div key={p} className="space-y-1">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={fileUrl(p)} alt="" className="h-44 rounded-xl border border-stone-200 object-contain" />
+                <img src={fileUrl(p)} alt="" className="h-44 rounded-xl border border-line object-contain" />
                 <button
                   className="btn-secondary w-full text-xs"
                   disabled={c.references.includes(p)}
@@ -215,7 +216,7 @@ function CharacterCard({ c, onChange }: { c: Character; onChange: () => void }) 
         </div>
       )}
 
-      {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && <p className="msg-err">{error}</p>}
     </div>
   );
 }

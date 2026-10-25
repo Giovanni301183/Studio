@@ -14,7 +14,7 @@ type Action =
   | { action: "script" }
   | { action: "images"; scene: number; count?: number }
   | { action: "select"; scene: number; image: string }
-  | { action: "video"; scene: number }
+  | { action: "video"; scene: number; duration?: number }
   | { action: "voices"; scene?: number }
   | { action: "export" }
   | { action: "n8n" };
@@ -75,7 +75,7 @@ export const POST = (req: Request, ctx: Ctx) =>
           prompt: s.imagePrompt,
           references,
           aspect: ep.aspect,
-          count: body.count ?? 2,
+          count: Math.min(4, Math.max(1, body.count ?? 2)),
           outDir: `episodes/${ep.id}/scene${s.number}`,
         });
         s.images.push(...created);
@@ -95,7 +95,7 @@ export const POST = (req: Request, ctx: Ctx) =>
         s.video = await animateImage({
           image: s.selectedImage,
           prompt: `${s.motion}. ${s.imagePrompt}`,
-          durationSec: Math.min(s.durationSec, 10),
+          durationSec: body.duration ?? Math.min(s.durationSec, 10),
           outFile: `episodes/${ep.id}/scene${s.number}/video-${Date.now()}.mp4`,
         });
         break;
