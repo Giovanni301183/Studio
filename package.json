@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "set-password": "node scripts/set-password.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

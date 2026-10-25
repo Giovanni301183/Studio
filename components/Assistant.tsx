@@ -296,6 +296,8 @@ export default function Assistant() {
   });
   flush();
 
+  if (path === "/login") return null;
+
   return (
     <>
       {!open && (
