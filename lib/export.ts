@@ -1,6 +1,5 @@
-import { promises as fs } from "fs";
 import path from "path";
-import { abs, writeFile } from "./storage";
+import { abs, copyFile, removePrefix, signedUrl, usingSupabase, writeFile } from "./storage";
 import type { Episode } from "./types";
 
 const WORDS_PER_SEC = 2.3;
@@ -78,15 +77,13 @@ export function buildScriptMd(ep: Episode) {
 /**
  * Crea la cartella "export" pronta per il montatore:
  * immagini e audio numerati per scena, sceneggiatura, sottotitoli e dati in JSON (per n8n).
+ * Su Supabase la cartella sta nell'archivio file; i link nel manifest valgono 7 giorni.
  */
 export async function exportEpisode(ep: Episode) {
   const dir = `episodes/${ep.id}/export`;
-  await fs.rm(abs(dir), { recursive: true, force: true });
+  await removePrefix(dir);
 
-  const copy = async (rel: string, name: string) => {
-    await writeFile(`${dir}/${name}`, await fs.readFile(abs(rel)));
-    return `${dir}/${name}`;
-  };
+  const copy = async (rel: string, name: string) => copyFile(rel, `${dir}/${name}`);
 
   const manifest = [];
   for (const s of ep.scenes) {
@@ -107,9 +104,18 @@ export async function exportEpisode(ep: Episode) {
 
   await writeFile(`${dir}/sceneggiatura.md`, Buffer.from(buildScriptMd(ep), "utf8"));
   await writeFile(`${dir}/sottotitoli.srt`, Buffer.from(buildSrt(ep), "utf8"));
-  await writeFile(
-    `${dir}/episodio.json`,
-    Buffer.from(JSON.stringify({ ...ep, manifest }, null, 2), "utf8"),
-  );
-  return { dir: abs(dir), manifest };
+
+  // Su Supabase aggiungiamo link scaricabili (per il montatore e per n8n)
+  const files = ["sceneggiatura.md", "sottotitoli.srt"].map((n) => `${dir}/${n}`);
+  for (const m of manifest) {
+    for (const k of ["image", "video"] as const) if (typeof m[k] === "string") files.push(m[k] as string);
+    files.push(...((m.audio as string[]) ?? []));
+  }
+  const links: Record<string, string> = {};
+  if (usingSupabase()) {
+    for (const f of files) links[path.basename(f)] = (await signedUrl(f, 7 * 86400))!;
+  }
+
+  await writeFile(`${dir}/episodio.json`, Buffer.from(JSON.stringify({ ...ep, manifest, links }, null, 2), "utf8"));
+  return { dir: usingSupabase() ? `Supabase › studio/${dir}` : abs(dir), manifest, links };
 }

@@ -1,9 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
-import { promises as fs } from "fs";
 import { z } from "zod";
 import { getSettings, requireKey } from "./settings";
-import { abs, readJson, writeJson } from "./storage";
+import { listJson, readJson, writeJson } from "./storage";
 
 export const PRESS_CATEGORIES = [
   "Strumenti AI",
@@ -147,15 +146,8 @@ export async function createDigest(focus = ""): Promise<PressDigest> {
 }
 
 export async function listDigests() {
-  let files: string[] = [];
-  try {
-    files = await fs.readdir(abs("press"));
-  } catch {
-    return [];
-  }
-  const all = await Promise.all(files.filter((f) => f.endsWith(".json")).map((f) => readJson<PressDigest | null>(`press/${f}`, null)));
+  const all = await listJson<PressDigest>("press/", ".json");
   return all
-    .filter((d): d is PressDigest => d !== null)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .map((d) => ({ id: d.id, createdAt: d.createdAt, focus: d.focus, items: d.items.length }));
 }

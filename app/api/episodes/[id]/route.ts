@@ -132,7 +132,13 @@ export const POST = (req: Request, ctx: Ctx) =>
         const res = await fetch(n8nWebhookUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ event: "episodio_pronto", episode: ep, exportDir: result.dir, manifest: result.manifest }),
+          body: JSON.stringify({
+            event: "episodio_pronto",
+            episode: ep,
+            exportDir: result.dir,
+            manifest: result.manifest,
+            links: result.links, // link scaricabili (validi 7 giorni) quando si usa Supabase
+          }),
         });
         if (!res.ok) throw new Error(`n8n ha risposto ${res.status}: ${await res.text()}`);
         return { episode: ep, sent: true };

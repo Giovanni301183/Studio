@@ -1,28 +1,18 @@
-import path from "path";
-import { readFile } from "@/lib/storage";
+import { NextResponse } from "next/server";
+import { mimeOf, readFile, signedUrl, usingSupabase } from "@/lib/storage";
 
-const TYPES: Record<string, string> = {
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".webp": "image/webp",
-  ".gif": "image/gif",
-  ".mp3": "audio/mpeg",
-  ".mp4": "video/mp4",
-  ".pdf": "application/pdf",
-  ".txt": "text/plain; charset=utf-8",
-  ".md": "text/markdown; charset=utf-8",
-};
-
-// Serve i file salvati in data/ (immagini, audio, video) all'interfaccia
+// Serve i file salvati (immagini, audio, video) all'interfaccia.
+// Su Supabase rimanda a un link temporaneo, così anche i video grandi non passano dal server.
 export async function GET(_req: Request, ctx: RouteContext<"/api/files/[...path]">) {
   const { path: parts } = await ctx.params;
   const rel = parts.map(decodeURIComponent).join("/");
   try {
+    if (usingSupabase()) {
+      const url = await signedUrl(rel, 3600);
+      return NextResponse.redirect(url!, { headers: { "Cache-Control": "private, max-age=3000" } });
+    }
     const data = await readFile(rel);
-    return new Response(new Uint8Array(data), {
-      headers: { "Content-Type": TYPES[path.extname(rel).toLowerCase()] ?? "application/octet-stream" },
-    });
+    return new Response(new Uint8Array(data), { headers: { "Content-Type": mimeOf(rel) } });
   } catch {
     return new Response("Non trovato", { status: 404 });
   }
